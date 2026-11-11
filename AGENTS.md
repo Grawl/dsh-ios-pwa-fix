@@ -7,19 +7,15 @@ Orientation for agents working on `dsh-ios-pwa-fix`.
 A DSH client plugin for the DeepSeek Harness web GUI. It keeps the GUI usable
 as an iPhone or iPad Home Screen app:
 
+- adds `viewport-fit=cover`, so the browser reports the safe-area insets;
 - reserves the status-bar strip when the page spans the screen;
+- pads the bottom by the Home indicator;
 - pins the page to the visible band while the on-screen keyboard is open;
 - keeps text fields at 16px or more, so WebKit does not zoom on focus;
-- offers an optional key bar with Esc, Tab, arrows, a new line, and modifiers.
+- hides the skin's fixed blurred fade bands at the screen edges.
 
-The key bar has a master switch and five group switches: Esc, Tab, modifiers,
-arrow keys, and new line. All switches default on. The bar shows only the enabled
-groups, with a separator between visible groups. Cmd appears on iPad only.
-
-It is a browser layout patch with an optional input bar. It starts no service
-and reads no data. The key bar sends synthetic keyboard events to the focused
-field. The layout patch is inert outside iOS and iPadOS standalone display mode.
-The settings card is visible on every platform.
+It is a browser layout patch. It starts no service and reads no data. The layout
+patch is inert outside iOS and iPadOS standalone display mode.
 
 ## Repository layout
 
@@ -46,10 +42,6 @@ The settings card is visible on every platform.
   `window.__ModuleLoader__.load({ id, factory })`.
 - Re-materialisation is guarded by the style element, so one layout patch stays
   active.
-- The key bar feature registers its settings card into `plugins.bundle.config`
-  under the package name. It needs `slots`; React is loaded from the browser
-  module table only when the card registers. The layout patch only calls
-  `KeyBar.install`, `KeyBar.mount`, `show`, `hide`, and `dispose`.
 
 ## Browser half
 
@@ -58,20 +50,14 @@ Read the header of `lib/client.js` first. The main pieces:
 | piece | behavior |
 |---|---|
 | `detectEnvironment` | Reads the user agent, display mode, page scale, and touch. |
+| `setViewportCover` | Adds `viewport-fit=cover` to the page meta. |
 | `statusBarHeight` | Reserves the strip only when the page spans the screen. |
 | `geometry` | Uses `documentElement.clientHeight`, not `innerHeight`. |
 | `sync` | Pins or releases the shell. Holds the pin through closed-looking transients. |
 | `pass` | Runs one pass, then a watchdog frame and a settle pass while open. |
-| `paint` | Writes the pinned height, then asks the key bar to show. |
-| `release` | Restores the body height, padding, and classes; asks the key bar to hide. |
-| `createKeyBar` | Builds the bar, its key groups, and the one-shot modifiers. |
-| `setGroups` | Shows the enabled key groups and one separator between visible groups. |
-| `KeyBar.install` | Registers the dictionary and settings card on every platform. |
-| `KeyBar.mount` | Builds the bar and its own style, then subscribes to settings. |
-| `send` | Sends keydown and keyup to the focused field. |
-| `applyKeyFallback` | Moves the caret or inserts a newline or tab for plain inputs. |
-| `KeyBarSettings` | Renders the master switch and the five group switches. |
-| `dispose` | Removes listeners, timers, frames, style, strip, bar, and subscription. |
+| `paint` | Writes the pinned height. |
+| `release` | Restores the body height, padding, and classes. |
+| `dispose` | Removes listeners, timers, frames, style, and strip. |
 
 Stability rules:
 
@@ -94,8 +80,6 @@ Read from `localStorage["dsh-ios-pwa-fix"]` as JSON at apply time.
 | `scrollReset` | `"onOpen"` | `"onOpen"`, `"always"`, or `"off"`. |
 | `watchdog` | `true` | Keep checking while the keyboard is open. |
 | `lockScroll` | `true` | Pin document scroll while open. |
-| `keyBar` | `true` | Master switch for the key bar. |
-| `keyBarGroups` | all groups | Groups to show: `"esc"`, `"tab"`, `"modifiers"`, `"arrows"`, `"newline"`. The switches write both keys. |
 | `debug` | `false` | Log geometry and expose `window.__dshIosPwaEnvironment`. |
 
 ## Build, test, install
@@ -135,9 +119,7 @@ cookies, or full HTML.
 - Use 2-space indentation.
 - Comments describe the current state, not the history.
 - Keep the browser half in the built-bundle format. It loads no module before
-  `apply`; the settings card requires React from the browser module table.
-- Do not claim a layout or key bar fix works from a test run. The test suite uses
-  a stubbed DOM. Only an iPad or iPhone session can verify layout and the bar.
-- The layout patch does not change text insertion or system keyboard sounds. The
-  optional key bar sends keyboard events to the focused field. Do not add text
-  insertion outside those events.
+  `apply`.
+- Do not claim a layout fix works from a test run. The test suite uses a stubbed
+  DOM. Only an iPad or iPhone session can verify layout.
+- The layout patch does not change text insertion or system keyboard sounds.
