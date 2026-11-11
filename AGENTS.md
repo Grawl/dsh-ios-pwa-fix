@@ -12,7 +12,8 @@ as an iPhone or iPad Home Screen app:
 - pads the bottom by the Home indicator;
 - pins the page to the visible band while the on-screen keyboard is open;
 - keeps text fields at 16px or more, so WebKit does not zoom on focus;
-- hides the skin's fixed blurred fade bands at the screen edges.
+- hides the skin's fixed blurred fade bands at the screen edges;
+- stops the page's rubber-band and pull-to-refresh.
 
 It is a browser layout patch. It starts no service and reads no data. The layout
 patch is inert outside iOS and iPadOS standalone display mode.

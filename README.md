@@ -54,6 +54,7 @@ Tested on iPhone and iPad running iOS and iPadOS 18, in portrait and landscape.
 - While the keyboard is open, it pins the page to the visible band.
 - It keeps text fields at 16px or more, so WebKit does not zoom on focus.
 - It hides the skin's fixed blurred fade bands at the screen edges.
+- It stops the page's rubber-band and pull-to-refresh.
 - The layout patch does not change text input or keyboard sounds.
 
 ## Troubleshooting

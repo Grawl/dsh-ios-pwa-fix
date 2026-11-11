@@ -1,5 +1,10 @@
 # Release notes
 
+## 1.3.1
+
+- Removed the header bar blur and the skin's fade bands.
+- Stopped iOS rubber-band and pull-to-refresh from revealing the page.
+
 ## 1.3.0
 
 - Removed the key bar. The plugin is a layout patch only.

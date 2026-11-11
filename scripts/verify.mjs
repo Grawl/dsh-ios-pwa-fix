@@ -344,6 +344,14 @@ console.log("\nViewport: the page extends under the safe area");
   check("the bottom padding uses the Home indicator", findStyle(b, "padding-bottom: env(safe-area-inset-bottom"), true);
 }
 
+console.log("\nSkin: the header blur and the rubber-band are off");
+{
+  const b = boot({ standalone: true, envTop: 24 });
+  check("the glass fade is hidden", findStyle(b, "[data-dsh-glass-fade] { display: none"), true);
+  check("the header blur is removed", findStyle(b, "backdrop-filter: none"), true);
+  check("overscroll is stopped", findStyle(b, "overscroll-behavior: none"), true);
+}
+
 console.log("\nStrip selection");
 {
   // iPhone: screen 874pt, layout 812pt. The page is already below the status bar.
