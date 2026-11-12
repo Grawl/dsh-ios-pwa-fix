@@ -1,6 +1,6 @@
 {
   "name": "dsh-ios-pwa-fix",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "Keep the DSH web GUI usable as an iPhone and iPad Home Screen app: status bar, safe area, and keyboard.",
   "type": "module",
   "main": "lib/index.js",
