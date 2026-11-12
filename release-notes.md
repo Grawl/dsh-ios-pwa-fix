@@ -1,5 +1,9 @@
 # Release notes
 
+## 1.3.2
+
+- Stopped the rubber-band on the app's own scroll container, not only the body.
+
 ## 1.3.1
 
 - Removed the header bar blur and the skin's fade bands.
