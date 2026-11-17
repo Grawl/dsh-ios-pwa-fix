@@ -3,8 +3,9 @@
  * verify.mjs — checks the browser half against a stubbed DOM.
  *
  * The stub cannot prove how iOS lays out a Home Screen app. It checks the patch
- * logic: standalone gating, viewport cover, strip selection, keyboard pinning,
- * measured iOS geometry, watchdog, scroll policy, and cleanup.
+ * logic: standalone gating, viewport cover, the injected sheet, keyboard
+ * pinning, the watchdog, the scroll policy, and cleanup. It also checks that the
+ * sheet inside the bundle still matches lib/layout.css.
  *
  *   node scripts/verify.mjs
  */
@@ -21,7 +22,9 @@ let failures = 0;
 const check = (label, actual, expected) => {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
   if (!ok) failures++;
-  console.log(`  ${ok ? "ok  " : "FAIL"} ${label}${ok ? "" : `\n         expected ${JSON.stringify(expected)}\n         actual   ${JSON.stringify(actual)}`}`);
+  console.log(
+    `  ${ok ? "ok  " : "FAIL"} ${label}${ok ? "" : `\n         expected ${JSON.stringify(expected)}\n         actual   ${JSON.stringify(actual)}`}`,
+  );
 };
 
 const findStyle = (b, needle) => {
@@ -30,9 +33,23 @@ const findStyle = (b, needle) => {
 };
 
 /** A DOM just big enough for the patch, with every hook it touches made observable. */
-function makeEnvironment({ standalone = true, navigatorStandalone = standalone, displayMode = standalone ? "standalone" : "browser", userAgent = "iPad", maxTouchPoints = 5, envTop = 0, stored = null, innerHeight = 1194, offsetTop = 0, layoutHeight = 0, screenHeight = 0, scale = 1, viewportContent = "width=device-width, initial-scale=1" } = {}) {
+function makeEnvironment({
+  standalone = true,
+  navigatorStandalone = standalone,
+  displayMode = standalone ? "standalone" : "browser",
+  userAgent = "iPad",
+  maxTouchPoints = 5,
+  envTop = 0,
+  stored = null,
+  innerHeight = 1194,
+  offsetTop = 0,
+  layoutHeight = 0,
+  screenHeight = 0,
+  scale = 1,
+  viewportContent = "width=device-width, initial-scale=1",
+} = {}) {
   const registry = [];
-  const listeners = { window: {}, viewport: {} };
+  const listeners = { window: {}, viewport: {}, document: {} };
   const frames = [];
   const timers = [];
   const scrolledTo = [];
@@ -62,12 +79,16 @@ function makeEnvironment({ standalone = true, navigatorStandalone = standalone, 
         const style = {
           _p: {},
           height: "",
-          setProperty(k, v) { this._p[k] = v; },
+          setProperty(k, v) {
+            this._p[k] = v;
+          },
           removeProperty(k) {
             delete this._p[k];
             if (k === "height") style.height = "";
           },
-          getPropertyValue(k) { return this._p[k]; },
+          getPropertyValue(k) {
+            return this._p[k];
+          },
         };
         return style;
       })(),
@@ -103,6 +124,14 @@ function makeEnvironment({ standalone = true, navigatorStandalone = standalone, 
         if (child.id) registry.push(child);
         return child;
       },
+      insertBefore(child, reference) {
+        child.parent = node;
+        const at = node.children.indexOf(reference);
+        if (at < 0) node.children.push(child);
+        else node.children.splice(at, 0, child);
+        if (child.id) registry.push(child);
+        return child;
+      },
       remove() {
         if (node.parent) node.parent.children = node.parent.children.filter((c) => c !== node);
         const i = registry.indexOf(node);
@@ -127,6 +156,12 @@ function makeEnvironment({ standalone = true, navigatorStandalone = standalone, 
     body,
     head,
     createElement: el,
+    addEventListener: (type, fn) => {
+      (listeners.document[type] ??= []).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      listeners.document[type] = (listeners.document[type] ?? []).filter((f) => f !== fn);
+    },
     getElementById: (id) => registry.find((e) => e.id === id) ?? null,
     querySelector: (selector) => (selector === 'meta[name="viewport"]' ? viewportMeta : null),
   };
@@ -136,8 +171,12 @@ function makeEnvironment({ standalone = true, navigatorStandalone = standalone, 
     offsetTop,
     scale,
     width: 834,
-    addEventListener: (t, fn) => { (listeners.viewport[t] ??= []).push(fn); },
-    removeEventListener: (t, fn) => { listeners.viewport[t] = (listeners.viewport[t] ?? []).filter((f) => f !== fn); },
+    addEventListener: (t, fn) => {
+      (listeners.viewport[t] ??= []).push(fn);
+    },
+    removeEventListener: (t, fn) => {
+      listeners.viewport[t] = (listeners.viewport[t] ?? []).filter((f) => f !== fn);
+    },
   };
 
   const windowRef = {
@@ -154,19 +193,41 @@ function makeEnvironment({ standalone = true, navigatorStandalone = standalone, 
     },
     localStorage: {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
-      setItem: (k, v) => { store.set(k, String(v)); },
-      removeItem: (k) => { store.delete(k); },
+      setItem: (k, v) => {
+        store.set(k, String(v));
+      },
+      removeItem: (k) => {
+        store.delete(k);
+      },
     },
     visualViewport: viewport,
     performance: { now: () => clock },
-    requestAnimationFrame: (cb) => { frames.push(cb); return frames.length; },
-    cancelAnimationFrame: (id) => { if (typeof id === "number" && id > 0) frames.splice(id - 1, 1); },
-    setTimeout: (cb, ms) => { timers.push({ cb, ms }); return timers.length; },
-    clearTimeout: (id) => { if (id > 0) timers[id - 1] = { cb: null, ms: 0 }; },
+    requestAnimationFrame: (cb) => {
+      frames.push(cb);
+      return frames.length;
+    },
+    cancelAnimationFrame: (id) => {
+      if (typeof id === "number" && id > 0) frames.splice(id - 1, 1);
+    },
+    setTimeout: (cb, ms) => {
+      timers.push({ cb, ms });
+      return timers.length;
+    },
+    clearTimeout: (id) => {
+      if (id > 0) timers[id - 1] = { cb: null, ms: 0 };
+    },
     scrollTo: (x, y) => scrolledTo.push([x, y]),
-    addEventListener: (t, fn) => { (listeners.window[t] ??= []).push(fn); },
-    removeEventListener: (t, fn) => { listeners.window[t] = (listeners.window[t] ?? []).filter((f) => f !== fn); },
-    __ModuleLoader__: { load: (def) => { windowRef.__def = def; } },
+    addEventListener: (t, fn) => {
+      (listeners.window[t] ??= []).push(fn);
+    },
+    removeEventListener: (t, fn) => {
+      listeners.window[t] = (listeners.window[t] ?? []).filter((f) => f !== fn);
+    },
+    __ModuleLoader__: {
+      load: (def) => {
+        windowRef.__def = def;
+      },
+    },
   };
 
   const flush = () => {
@@ -197,8 +258,25 @@ function makeEnvironment({ standalone = true, navigatorStandalone = standalone, 
   };
 
   return {
-    windowRef, doc, documentElement, body, head, registry, listeners, frames, timers, scrolledTo, viewportMeta,
-    console: console_, flush, fireViewportEvent, viewport, runTimers, tick, advance, now: () => clock,
+    windowRef,
+    doc,
+    documentElement,
+    body,
+    head,
+    registry,
+    listeners,
+    frames,
+    timers,
+    scrolledTo,
+    viewportMeta,
+    console: console_,
+    flush,
+    fireViewportEvent,
+    viewport,
+    runTimers,
+    tick,
+    advance,
+    now: () => clock,
   };
 }
 
@@ -213,8 +291,10 @@ function boot(envOptions, extras = {}) {
   });
   let disposer = null;
   exported.apply({
-    effect: (fn) => { disposer = fn(); },
-    ...(extras.context ?? {}),
+    effect: (fn) => {
+      disposer = fn();
+    },
+    ...extras.context,
   });
   env.dispose = () => disposer?.();
   env.exports = exported;
@@ -223,7 +303,6 @@ function boot(envOptions, extras = {}) {
 
 const topVar = (b) => b.documentElement.style.getPropertyValue("--dsh-ios-top");
 const heightVar = (b) => b.documentElement.style.getPropertyValue("--dsh-ios-vvh");
-const bodyPadVar = (b) => b.documentElement.style.getPropertyValue("--dsh-ios-body-pad");
 const inlineHeight = (b) => b.body.style.height;
 const keyboard = (b) => b.documentElement.classList.contains("dsh-ios-keyboard");
 const locked = (b) => b.documentElement.classList.contains("dsh-ios-locked");
@@ -309,20 +388,19 @@ console.log("\nEnvironment detection");
   check("iOS Safari tab is inert", b.registry.length, 0);
 }
 
-console.log("\nHome Screen app: reserves the status-bar strip");
+console.log("\nHome Screen app: injects the layout sheet");
 {
-  const b = boot({ standalone: true, envTop: 0 });
-  check("style injected once", b.registry.filter((e) => e.id === "dsh-ios-pwa-fix-style").length, 1);
-  check("strip element injected", b.registry.some((e) => e.id === "dsh-ios-pwa-fix-strip"), true);
-  check("falls back to 24px", topVar(b), "24px");
+  const b = boot({ standalone: true });
+  const styles = b.registry.filter((e) => e.id === "dsh-ios-pwa-fix-style");
+  check("style injected once", styles.length, 1);
+  check("style is the first child of head", b.head.children[0] === styles[0], true);
+  check("style carries the shell rule", styles[0].textContent.includes("html.dsh-ios-pwa {"), true);
+  check("style carries the Home indicator band", styles[0].textContent.includes("env(safe-area-inset-bottom"), true);
+  check("style carries the keyboard rule", styles[0].textContent.includes("dsh-ios-keyboard"), true);
 }
 {
-  const b = boot({ standalone: true, envTop: 44 });
-  check("env(safe-area-inset-top) wins", topVar(b), "44px");
-}
-{
-  const b = boot({ standalone: true, envTop: 0, stored: { top: 30 } });
-  check("top override applies", topVar(b), "30px");
+  const b = boot({ standalone: true, stored: { top: 30, strip: "always" } });
+  check("removed strip settings are ignored", b.registry.filter((e) => e.id === "dsh-ios-pwa-fix-style").length, 1);
 }
 
 console.log("\nViewport: the page extends under the safe area");
@@ -333,72 +411,30 @@ console.log("\nViewport: the page extends under the safe area");
 }
 {
   const b = boot({ standalone: true, viewportContent: "width=device-width, initial-scale=1, viewport-fit=cover" });
-  check("cover is not duplicated", b.viewportMeta.getAttribute("content"), "width=device-width, initial-scale=1, viewport-fit=cover");
+  check(
+    "cover is not duplicated",
+    b.viewportMeta.getAttribute("content"),
+    "width=device-width, initial-scale=1, viewport-fit=cover",
+  );
 }
 {
   const b = boot({ standalone: false });
-  check("a Safari tab keeps the viewport", b.viewportMeta.getAttribute("content"), "width=device-width, initial-scale=1");
-}
-{
-  const b = boot({ standalone: true, envTop: 24 });
-  check("the bottom padding uses the Home indicator", findStyle(b, "padding-bottom: env(safe-area-inset-bottom"), true);
-}
-
-console.log("\nSkin: the header blur and the rubber-band are off");
-{
-  const b = boot({ standalone: true, envTop: 24 });
-  check("the glass fade is hidden", findStyle(b, "[data-dsh-glass-fade] { display: none"), true);
-  check("the header blur is removed", findStyle(b, "backdrop-filter: none"), true);
-  check("overscroll is stopped", findStyle(b, "overscroll-behavior: none"), true);
+  check(
+    "a Safari tab keeps the viewport",
+    b.viewportMeta.getAttribute("content"),
+    "width=device-width, initial-scale=1",
+  );
 }
 
-console.log("\nStrip selection");
+console.log("\nSheet: the blur, the notch and the rubber-band");
 {
-  // iPhone: screen 874pt, layout 812pt. The page is already below the status bar.
-  const b = boot({ standalone: true, envTop: 0, layoutHeight: 812, screenHeight: 874 });
-  check("no strip when the page is inset", topVar(b), "0px");
-}
-{
-  const b = boot({ standalone: true, envTop: 0, layoutHeight: 1194, screenHeight: 1194 });
-  check("strip kept when the page spans the screen", topVar(b), "24px");
-}
-{
-  // iPad desktop mode: 1468 CSS px at page scale 0.75 = 1101pt of a 1133pt screen.
-  const b = boot({ standalone: true, envTop: 0, layoutHeight: 1468, screenHeight: 1133, scale: 0.75 });
-  check("iPad at scale 0.75 is inset", topVar(b), "0px");
-}
-{
-  const b = boot({ standalone: true, envTop: 0, layoutHeight: 812, screenHeight: 874, stored: { strip: "always" } });
-  check("strip:always reserves the strip", topVar(b), "24px");
-}
-{
-  const b = boot({ standalone: true, envTop: 0, layoutHeight: 812, screenHeight: 874, stored: { strip: "off" } });
-  check("strip:off reserves nothing", topVar(b), "0px");
-}
-{
-  const b = boot({ standalone: true, envTop: 24 });
-  check("body carries the strip while closed", bodyPadVar(b), "24px");
-  check("band and padding agree", topVar(b), bodyPadVar(b));
-}
-
-console.log("\nBox model: the shell spans the band exactly");
-{
-  const b = boot({ standalone: true, envTop: 24 });
-  check("stylesheet applies the strip to the body", findStyle(b, "--dsh-ios-body-pad"), true);
-  check("stylesheet gives #root the strip while open", findStyle(b, "html.dsh-ios-pwa.dsh-ios-keyboard #root"), true);
-  check("body padding defaults to 0", findStyle(b, "padding-top: var(--dsh-ios-body-pad, 0px)"), true);
-
-  setBand(b, 874);
-  b.fireViewportEvent();
-  check("band pinned", heightVar(b), "874px");
-  check("body padding collapsed", bodyPadVar(b), "0px");
-  check("strip reserved by #root", topVar(b), "24px");
-
-  setBand(b, 1194);
-  b.fireViewportEvent();
-  check("padding held during the close grace", bodyPadVar(b), "0px");
-  b.tick();
-  check("body padding returns", bodyPadVar(b), "24px");
+  const b = boot({ standalone: true });
+  const sheet = b.registry.find((e) => e.id === "dsh-ios-pwa-fix-style").textContent;
+  check("the header blur is removed", sheet.includes("backdrop-filter: none"), true);
+  check("overscroll is stopped", sheet.includes("overscroll-behavior: none"), true);
+  check("the landscape notch is handled", sheet.includes("env(safe-area-inset-left"), true);
+  check("the sidebar column scrolls", sheet.includes("_sidebarCol"), true);
+  check("no !important is needed", sheet.includes("!important"), false);
 }
 
 console.log("\nKeyboard opens: shell pinned to the visible band");
@@ -408,7 +444,6 @@ console.log("\nKeyboard opens: shell pinned to the visible band");
   b.fireViewportEvent();
   check("keyboard class added", keyboard(b), true);
   check("height = band bottom", heightVar(b), "874px");
-  check("inline body height agrees", inlineHeight(b), "874px");
 }
 {
   const b = boot({ standalone: true, envTop: 24, offsetTop: 40 });
@@ -468,7 +503,11 @@ console.log("\nWatchdog repairs a silent adjustment");
   setBand(b, 814);
   b.runTimers();
   check("the settle timer repairs later drift", heightVar(b), "814px");
-  check("timer delay is the watchdog window", b.timers.some((t) => t.cb !== null && t.ms === 250), true);
+  check(
+    "timer delay is the watchdog window",
+    b.timers.some((t) => t.cb !== null && t.ms === 250),
+    true,
+  );
 }
 {
   const b = boot({ standalone: true, envTop: 24, stored: { watchdog: false } });
@@ -641,7 +680,6 @@ console.log("\nMeasured iOS state: innerHeight collapses, offsetTop tracks scrol
   b.fireViewportEvent();
   check("keyboard is detected", keyboard(b), true);
   check("shell is pinned to the visible height", heightVar(b), "364px");
-  check("body height agrees", inlineHeight(b), "364px");
 }
 
 console.log("\nManual resync hook");
@@ -660,8 +698,16 @@ console.log("\nDispose: every trace removed");
   setBand(b, 874);
   b.fireViewportEvent();
   b.dispose();
-  check("style removed", b.registry.some((e) => e.id === "dsh-ios-pwa-fix-style"), false);
-  check("strip removed", b.registry.some((e) => e.id === "dsh-ios-pwa-fix-strip"), false);
+  check(
+    "style removed",
+    b.registry.some((e) => e.id === "dsh-ios-pwa-fix-style"),
+    false,
+  );
+  check(
+    "strip removed",
+    b.registry.some((e) => e.id === "dsh-ios-pwa-fix-strip"),
+    false,
+  );
   check("root classes removed", [...b.documentElement._classes], []);
   check("height variables removed", [heightVar(b), topVar(b)], [undefined, undefined]);
   check("inline body height removed", inlineHeight(b), "");
@@ -691,7 +737,6 @@ console.log("\nSecond materialisation (HMR) does not stack a second patch");
   const b = boot({ standalone: true, envTop: 24 });
   b.exports.apply({ effect: () => {} });
   check("still one style element", b.registry.filter((e) => e.id === "dsh-ios-pwa-fix-style").length, 1);
-  check("still one strip element", b.registry.filter((e) => e.id === "dsh-ios-pwa-fix-strip").length, 1);
 }
 
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) failed.`);

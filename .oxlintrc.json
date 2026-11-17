@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2025": true
+  },
+  "ignorePatterns": ["node_modules"],
+  "rules": {
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["__ModuleLoader__", "__dshIosPwaEnvironment"]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/verify.mjs"],
+      "rules": {
+        "no-underscore-dangle": "off"
+      }
+    }
+  ]
+}

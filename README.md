@@ -3,11 +3,11 @@
 Fixes the status bar and keyboard layout in the DeepSeek Harness web GUI when
 it runs as a Home Screen app on iPhone and iPad.
 
-| before | after |
-|---|---|
-| The clock and battery cover the top of the page. | The page starts below the status bar. |
-| The keyboard covers the message box. | The message box stays above the keyboard. |
-| iOS zooms the page when you tap the message box. | The page keeps its size. |
+| before                                            | after                                     |
+| ------------------------------------------------- | ----------------------------------------- |
+| The clock and battery cover the top of the page.  | The page starts below the status bar.     |
+| The keyboard covers the message box.              | The message box stays above the keyboard. |
+| iOS zooms the page when you tap the message box.  | The page keeps its size.                  |
 | The Home indicator covers the bottom of the page. | The bottom row clears the Home indicator. |
 
 It runs only on iOS and iPadOS in standalone display mode, which is how a Home
@@ -34,14 +34,14 @@ Reload the GUI. Then fully close the Home Screen app and open it again.
 
 ## Requirements
 
-| item | value |
-|---|---|
-| DSH | 0.2.0 or later |
-| OS | iOS or iPadOS 18 (tested) |
-| display mode | Home Screen app |
-| build step | none |
-| dependencies | none |
-| data access | none |
+| item         | value                     |
+| ------------ | ------------------------- |
+| DSH          | 0.2.0 or later            |
+| OS           | iOS or iPadOS 18 (tested) |
+| display mode | Home Screen app           |
+| build step   | none                      |
+| dependencies | none                      |
+| data access  | none                      |
 
 Tested on iPhone and iPad running iOS and iPadOS 18, in portrait and landscape.
 
@@ -49,8 +49,9 @@ Tested on iPhone and iPad running iOS and iPadOS 18, in portrait and landscape.
 
 - The plugin adds `viewport-fit=cover` to the page, so the browser reports the
   safe-area insets.
-- It reserves the status-bar strip when the page spans the screen.
-- It pads the bottom by the Home indicator.
+- It injects the layout sheet from `lib/layout.css`: the status-bar strip, the
+  Home indicator band, the notch on the side in landscape, and the sidebar
+  column.
 - While the keyboard is open, it pins the page to the visible band.
 - It keeps text fields at 16px or more, so WebKit does not zoom on focus.
 - It hides the skin's fixed blurred fade bands at the screen edges.
@@ -59,13 +60,13 @@ Tested on iPhone and iPad running iOS and iPadOS 18, in portrait and landscape.
 
 ## Troubleshooting
 
-| symptom | action |
-|---|---|
-| The top of the page is clipped | In [Advanced settings](#advanced-settings), set `strip` to `"off"`. |
-| The status bar covers text | In [Advanced settings](#advanced-settings), set `strip` to `"always"`. |
-| The message box is still covered | Reload the GUI and reopen the app. If it remains, report the OS version and device model. |
-| The plugin does nothing | Open the GUI as a Home Screen app, not a Safari tab. |
-| iOS zooms the page when you tap the message box | Report the OS version and device model. |
+| symptom                                         | action                                                                                    |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| The top of the page is clipped                  | In [Advanced settings](#advanced-settings), set `strip` to `"off"`.                       |
+| The status bar covers text                      | In [Advanced settings](#advanced-settings), set `strip` to `"always"`.                    |
+| The message box is still covered                | Reload the GUI and reopen the app. If it remains, report the OS version and device model. |
+| The plugin does nothing                         | Open the GUI as a Home Screen app, not a Safari tab.                                      |
+| iOS zooms the page when you tap the message box | Report the OS version and device model.                                                   |
 
 ## Advanced settings
 
@@ -80,10 +81,10 @@ settings.strip = "off";
 localStorage.setItem("dsh-ios-pwa-fix", JSON.stringify(settings));
 ```
 
-| key | default | effect |
-|---|---|---|
+| key     | default  | effect                                                                                                               |
+| ------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
 | `strip` | `"auto"` | `"auto"` skips the strip when the system already insets the page. `"always"` reserves it. `"off"` never reserves it. |
-| `top` | `24` | Top strip height in CSS px when the system reports no inset. |
+| `top`   | `24`     | Top strip height in CSS px when the system reports no inset.                                                         |
 
 ### About page zoom
 
@@ -108,14 +109,20 @@ dsh plugin --profile <profile> remove <plugin>
 ## Development
 
 ```sh
-npm test
-npm pack --dry-run
+pnpm install
+pnpm lint
+pnpm test
+pnpm pack --dry-run
 ```
 
-The browser half is a hand-written bundle in `lib/client.js`. It has no build
-step and no imports at load time. The Host half in `lib/index.js` is a no-op
-entry that lets the profile load the package. The test suite runs against a
-stubbed DOM.
+The browser half is a hand-written bundle in `lib/client.js`. The plugin loader
+serves one module per client, so the layout sheet is copied into the bundle
+instead of being fetched: `lib/layout.css` is the source, `pnpm build-css`
+copies it between the `build-css` markers in `lib/client.js`, and `pnpm test`
+fails when the two drift apart. Formatting and JS linting come from oxfmt and
+oxlint; CSS linting comes from stylelint. The Host half in `lib/index.js` is a
+no-op entry that lets the profile load the package. The test suite runs against
+a stubbed DOM.
 
 See [release-notes.md](release-notes.md) for changes.
 
@@ -124,22 +131,22 @@ See [release-notes.md](release-notes.md) for changes.
 `detectEnvironment(win)` returns the values that gate the patch and can drive
 future version-specific rules.
 
-| field | value |
-|---|---|
-| `ios` | `true` on iOS or iPadOS. |
-| `platform` | `"iphone"`, `"ipad"`, `"ipod"`, or `null`. |
-| `version` | `{ major, minor, patch }`, or `null` when the user agent does not report it. |
-| `standalone` | `true` in standalone or fullscreen display mode. |
-| `displayMode` | `"standalone"`, `"fullscreen"`, or `"browser"`. |
-| `desktopMode` | `true` for the Macintosh user agent of iPadOS desktop mode. |
-| `touch` | `true` when `maxTouchPoints > 1`. |
+| field         | value                                                                        |
+| ------------- | ---------------------------------------------------------------------------- |
+| `ios`         | `true` on iOS or iPadOS.                                                     |
+| `platform`    | `"iphone"`, `"ipad"`, `"ipod"`, or `null`.                                   |
+| `version`     | `{ major, minor, patch }`, or `null` when the user agent does not report it. |
+| `standalone`  | `true` in standalone or fullscreen display mode.                             |
+| `displayMode` | `"standalone"`, `"fullscreen"`, or `"browser"`.                              |
+| `desktopMode` | `true` for the Macintosh user agent of iPadOS desktop mode.                  |
+| `touch`       | `true` when `maxTouchPoints > 1`.                                            |
 
 Set `debug: true` to expose the result as `window.__dshIosPwaEnvironment`.
 
 To force one layout check:
 
 ```js
-window.dispatchEvent(new Event("dsh-ios-pwa-resync"))
+window.dispatchEvent(new Event("dsh-ios-pwa-resync"));
 ```
 
 ## Limits

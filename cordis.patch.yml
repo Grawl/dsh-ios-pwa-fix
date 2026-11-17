@@ -4,4 +4,4 @@
 # lib/client.js as a browser bundle. `immediately: true` materialises it at boot.
 - insert:
     - id: ios-pwa-fix
-      name: 'dsh-ios-pwa-fix'
+      name: "dsh-ios-pwa-fix"

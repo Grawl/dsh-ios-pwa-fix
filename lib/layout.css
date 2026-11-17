@@ -1,0 +1,142 @@
+/*
+ * Layout of the GUI as a Home Screen app on iOS.
+ *
+ * The client inserts this sheet at the top of <head> and removes it on dispose.
+ * A stylesheet linked later in the head wins on equal specificity: a deployment
+ * can serve its own overrides from a URL without touching the plugin.
+ *
+ * The dsh-ios-pwa-fix plugin puts the class dsh-ios-pwa on <html>, adds
+ * dsh-ios-keyboard while the software keyboard covers the screen, and writes
+ * the custom property --dsh-ios-vvh with the height of the visible band left.
+ */
+
+html.dsh-ios-pwa {
+  color-scheme: light dark;
+  position: fixed;
+  inset: 0;
+
+  &,
+  body {
+    height: 100dvh;
+    overflow: hidden;
+
+    &,
+    #root,
+    [data-conversation-scroll] {
+      overscroll-behavior: none;
+    }
+  }
+
+  /* A body in flow keeps a screen of scrollable page around the visible band,
+	 * and iOS uses it when the keyboard opens or a gesture misses the scroller. A
+	 * fixed body has nothing to scroll. */
+  body {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    &::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: env(safe-area-inset-top, 0px);
+      background-color: light-dark(#fff, #151416);
+      pointer-events: none;
+      z-index: 2147483000;
+    }
+  }
+
+  #root {
+    box-sizing: border-box;
+    height: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow: hidden;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    font-size: max(16px, 1em);
+  }
+
+  &.dsh-ios-locked {
+    &,
+    body {
+      overflow: hidden;
+    }
+  }
+
+  /* The header bar of the shell paints its own frosted band: on iOS it sits over
+	 * the status bar and reads as a blur. The band belongs to the page, not to the
+	 * header. */
+  header,
+  header::before,
+  header::after,
+  [data-plugin-bar],
+  [data-plugin-bar]::before,
+  [data-plugin-bar]::after,
+  [data-phase] > header,
+  [class*="pageBar"],
+  [class*="pageBar"]::before,
+  [class*="pageBar"]::after {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  [class*="_sidebarCol"] {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The chrome carries the vertical insets, so the shell itself stays exactly the
+	 * size of the screen and nothing overflows: the status bar sits over the header
+	 * and the home indicator under the composer, not over the shell. */
+  header {
+    padding-top: env(safe-area-inset-top, 0px);
+    height: auto;
+  }
+
+  [class*="_sidebarCol"] > div > [class*="_root"] {
+    height: unset;
+    min-height: 100%;
+  }
+
+  [class*="_tabHostBody"] [class*="_tabBody"] {
+    height: unset;
+  }
+
+  &.dsh-ios-keyboard {
+    #root {
+      height: var(--dsh-ios-vvh, 100dvh);
+      padding-bottom: 0;
+    }
+    body {
+      height: var(--dsh-ios-vvh, 100dvh);
+    }
+  }
+
+  [class*="_frame"] {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: env(safe-area-inset-left, 0px);
+      background: var(--dsw-specific-sidebar-fill, transparent);
+      pointer-events: none;
+    }
+  }
+
+  [class*="_sidebarCol"] > div > [class*="_root"] > [class*="_logoRow"] {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--dsw-specific-sidebar-fill);
+  }
+}

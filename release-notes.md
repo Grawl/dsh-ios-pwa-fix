@@ -1,5 +1,15 @@
 # Release notes
 
+## 1.5.0
+
+- Moved the layout into its own sheet, `lib/layout.css`, inserted by the client
+  and copied into the bundle by `pnpm build-css`.
+- Dropped the measured status-bar strip: the sheet reads `env()` directly.
+- Dropped the `top` and `strip` settings, which only fed that strip.
+- Kept the keyboard pin, and take back the visual-viewport pan that iOS applies
+  to a focused field.
+- Added oxlint, oxfmt, stylelint, a bundle/sheet sync check and a CI job.
+
 ## 1.3.2
 
 - Stopped the rubber-band on the app's own scroll container, not only the body.

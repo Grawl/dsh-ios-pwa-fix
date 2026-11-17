@@ -8,8 +8,8 @@ A DSH client plugin for the DeepSeek Harness web GUI. It keeps the GUI usable
 as an iPhone or iPad Home Screen app:
 
 - adds `viewport-fit=cover`, so the browser reports the safe-area insets;
-- reserves the status-bar strip when the page spans the screen;
-- pads the bottom by the Home indicator;
+- injects the layout sheet (`lib/layout.css`) that carries the status-bar
+  strip, the Home indicator band, the landscape notch and the sidebar column;
 - pins the page to the visible band while the on-screen keyboard is open;
 - keeps text fields at 16px or more, so WebKit does not zoom on focus;
 - hides the skin's fixed blurred fade bands at the screen edges;
@@ -18,19 +18,33 @@ as an iPhone or iPad Home Screen app:
 It is a browser layout patch. It starts no service and reads no data. The layout
 patch is inert outside iOS and iPadOS standalone display mode.
 
+## Layout sheet
+
+`lib/layout.css` is the source of truth for layout. The plugin loader serves one
+module per client, so `pnpm build-css` copies the sheet into `lib/client.js`
+between the `build-css` markers, and `pnpm test` fails when the copy drifts. A
+deployment can still override any rule: the client inserts its sheet as the
+first child of `<head>`, so a stylesheet linked later wins on equal
+specificity.
+
+## Checks
+
+`pnpm lint` runs oxlint, stylelint and an oxfmt check; `pnpm test` runs the
+bundle/sheet sync check and the stubbed-DOM suite. CI runs both.
+
 ## Repository layout
 
-| path | role |
-|---|---|
-| `package.json` | Bundle declaration: `dsh.bundle.patch`, `dsh.client`, locale, and icon. |
-| `cordis.patch.yml` | Loader row `id: ios-pwa-fix`, `name: dsh-ios-pwa-fix`. |
-| `lib/index.js` | Host half. A no-op entry so the profile can load the package. |
-| `lib/client.js` | Browser half. Hand-written bundle. No build step. |
-| `scripts/verify.mjs` | Stubbed-DOM test suite. |
-| `locale/en.json`, `locale/zh.json` | Plugin Manager title and description. |
-| `icon.svg` | Plugin Manager artwork. |
-| `README.md` | User documentation. Not a changelog. |
-| `release-notes.md` | Brief, publishable release notes. |
+| path                               | role                                                                    |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| `package.json`                     | Bundle declaration: `dsh.bundle.patch`, `dsh.client`, locale, and icon. |
+| `cordis.patch.yml`                 | Loader row `id: ios-pwa-fix`, `name: dsh-ios-pwa-fix`.                  |
+| `lib/index.js`                     | Host half. A no-op entry so the profile can load the package.           |
+| `lib/client.js`                    | Browser half. Hand-written bundle. No build step.                       |
+| `scripts/verify.mjs`               | Stubbed-DOM test suite.                                                 |
+| `locale/en.json`, `locale/zh.json` | Plugin Manager title and description.                                   |
+| `icon.svg`                         | Plugin Manager artwork.                                                 |
+| `README.md`                        | User documentation. Not a changelog.                                    |
+| `release-notes.md`                 | Brief, publishable release notes.                                       |
 
 ## How the plugin loads
 
@@ -48,17 +62,17 @@ patch is inert outside iOS and iPadOS standalone display mode.
 
 Read the header of `lib/client.js` first. The main pieces:
 
-| piece | behavior |
-|---|---|
-| `detectEnvironment` | Reads the user agent, display mode, page scale, and touch. |
-| `setViewportCover` | Adds `viewport-fit=cover` to the page meta. |
-| `statusBarHeight` | Reserves the strip only when the page spans the screen. |
-| `geometry` | Uses `documentElement.clientHeight`, not `innerHeight`. |
-| `sync` | Pins or releases the shell. Holds the pin through closed-looking transients. |
-| `pass` | Runs one pass, then a watchdog frame and a settle pass while open. |
-| `paint` | Writes the pinned height. |
-| `release` | Restores the body height, padding, and classes. |
-| `dispose` | Removes listeners, timers, frames, style, and strip. |
+| piece               | behavior                                                                     |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `detectEnvironment` | Reads the user agent, display mode, page scale, and touch.                   |
+| `setViewportCover`  | Adds `viewport-fit=cover` to the page meta.                                  |
+| `statusBarHeight`   | Reserves the strip only when the page spans the screen.                      |
+| `geometry`          | Uses `documentElement.clientHeight`, not `innerHeight`.                      |
+| `sync`              | Pins or releases the shell. Holds the pin through closed-looking transients. |
+| `pass`              | Runs one pass, then a watchdog frame and a settle pass while open.           |
+| `paint`             | Writes the pinned height.                                                    |
+| `release`           | Restores the body height, padding, and classes.                              |
+| `dispose`           | Removes listeners, timers, frames, style, and strip.                         |
 
 Stability rules:
 
@@ -73,15 +87,15 @@ Every DOM change is removed on dispose. The whole patch runs inside `try/catch`.
 
 Read from `localStorage["dsh-ios-pwa-fix"]` as JSON at apply time.
 
-| key | default | effect |
-|---|---|---|
-| `strip` | `"auto"` | `"auto"`, `"always"`, or `"off"`. |
-| `top` | `24` | Strip height in CSS px when no inset is reported. |
-| `minOverlap` | `60` | Smallest shortfall treated as the keyboard. |
-| `scrollReset` | `"onOpen"` | `"onOpen"`, `"always"`, or `"off"`. |
-| `watchdog` | `true` | Keep checking while the keyboard is open. |
-| `lockScroll` | `true` | Pin document scroll while open. |
-| `debug` | `false` | Log geometry and expose `window.__dshIosPwaEnvironment`. |
+| key           | default    | effect                                                   |
+| ------------- | ---------- | -------------------------------------------------------- |
+| `strip`       | `"auto"`   | `"auto"`, `"always"`, or `"off"`.                        |
+| `top`         | `24`       | Strip height in CSS px when no inset is reported.        |
+| `minOverlap`  | `60`       | Smallest shortfall treated as the keyboard.              |
+| `scrollReset` | `"onOpen"` | `"onOpen"`, `"always"`, or `"off"`.                      |
+| `watchdog`    | `true`     | Keep checking while the keyboard is open.                |
+| `lockScroll`  | `true`     | Pin document scroll while open.                          |
+| `debug`       | `false`    | Log geometry and expose `window.__dshIosPwaEnvironment`. |
 
 ## Build, test, install
 

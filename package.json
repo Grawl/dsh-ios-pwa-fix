@@ -1,18 +1,28 @@
 {
   "name": "dsh-ios-pwa-fix",
-  "version": "1.3.6",
+  "version": "1.5.0",
   "description": "Keep the DSH web GUI usable as an iPhone and iPad Home Screen app: status bar, safe area, and keyboard.",
-  "type": "module",
-  "main": "lib/index.js",
-  "icon": "./icon.svg",
-  "exports": {
-    ".": {
-      "default": "./lib/index.js"
-    },
-    "./client": "./lib/client.js",
-    "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg",
-    "./package.json": "./package.json"
+  "keywords": [
+    "cordis",
+    "deepseek-harness",
+    "dsh",
+    "ios",
+    "ipados",
+    "keyboard",
+    "plugin",
+    "pwa",
+    "safe-area",
+    "standalone",
+    "visualviewport"
+  ],
+  "homepage": "https://github.com/starsasumi/dsh-ios-pwa-fix#readme",
+  "bugs": {
+    "url": "https://github.com/starsasumi/dsh-ios-pwa-fix/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/starsasumi/dsh-ios-pwa-fix.git"
   },
   "files": [
     "lib",
@@ -24,19 +34,35 @@
     "release-notes.md",
     "LICENSE"
   ],
-  "keywords": [
-    "dsh",
-    "deepseek-harness",
-    "cordis",
-    "plugin",
-    "ios",
-    "ipados",
-    "pwa",
-    "standalone",
-    "keyboard",
-    "safe-area",
-    "visualviewport"
-  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build-css": "node scripts/build-css.mjs",
+    "check-css": "node scripts/build-css.mjs --check",
+    "format": "oxfmt --write . && stylelint \"lib/**/*.css\" --fix && node scripts/build-css.mjs",
+    "lint": "oxlint lib scripts && stylelint \"lib/**/*.css\" && oxfmt --check .",
+    "test": "node scripts/build-css.mjs --check && node scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "stylelint": "18.0.0",
+    "stylelint-config-standard": "^41.0.0"
+  },
+  "icon": "./icon.svg",
+  "engines": {
+    "dsh": ">=0.2.0",
+    "node": "^22.19.0 || >=24.0.0"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -45,21 +71,5 @@
       "platform": "web",
       "immediately": true
     }
-  },
-  "engines": {
-    "node": "^22.19.0 || >=24.0.0",
-    "dsh": ">=0.2.0"
-  },
-  "scripts": {
-    "test": "node scripts/verify.mjs"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/starsasumi/dsh-ios-pwa-fix.git"
-  },
-  "homepage": "https://github.com/starsasumi/dsh-ios-pwa-fix#readme",
-  "bugs": {
-    "url": "https://github.com/starsasumi/dsh-ios-pwa-fix/issues"
   }
 }
