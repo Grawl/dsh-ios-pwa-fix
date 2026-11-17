@@ -15,14 +15,14 @@
     "standalone",
     "visualviewport"
   ],
-  "homepage": "https://github.com/starsasumi/dsh-ios-pwa-fix#readme",
+  "homepage": "https://github.com/grawl/dsh-ios-pwa-fix#readme",
   "bugs": {
-    "url": "https://github.com/starsasumi/dsh-ios-pwa-fix/issues"
+    "url": "https://github.com/grawl/dsh-ios-pwa-fix/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/starsasumi/dsh-ios-pwa-fix.git"
+    "url": "git+https://github.com/grawl/dsh-ios-pwa-fix.git"
   },
   "files": [
     "lib",
